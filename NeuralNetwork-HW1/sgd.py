@@ -1,16 +1,13 @@
-from typing import Callable
 import random
 import numpy as np
-from pathlib import Path
 import matplotlib.pyplot as plt
-import seaborn as sns
 import pandas as pd
-from scipy.io import loadmat
-import glob
-import itertools
+from plots import plot_classification_accuracy, plot_loss
 from sklearn.linear_model import LinearRegression
+
 from generators import ls_mini_batch_generator, data_mini_batch_generator
-from softmax import grad_softmax_loss, softmax, softmax_loss
+from softmax import grad_softmax_loss_wrt_w, softmax, softmax_loss
+from utils import load_datasets, print_metrics
 
 seed = 1923
 np.random.seed(seed)
@@ -60,32 +57,35 @@ def ls_data_example(numbers):
         plt.show()
 
 
-def load_datasets(folder):
-    return {Path(f).stem: loadmat(f) for f in glob.glob(folder)}
-
-
-def calc_classification(data, epochs=200, batch_size=32, lr=0.05):
+def calc_classification(data, epochs=20, batch_size=32, lr=0.5, threshold=1e-6):
     X_train, X_val, y_train, y_val = data['Yt'].T, data['Yv'].T, data['Ct'].T, data['Cv'].T
     w = np.random.rand(y_val.shape[1], X_train.shape[1])
     w = w / np.linalg.norm(w)
-    for i in range(epochs):
+    metrics = dict()
+    for epoch in range(epochs):
         train_gen = data_mini_batch_generator(data=[X_train, y_train], bs=batch_size)
-        print(f'Starting epoch {i+1}/{epochs}')
+        if not epoch % 25:
+            print(f'Starting epoch {epoch+1}/{epochs}')
         for mb in range(X_train.shape[0] // batch_size):
             X_batch, y_batch = next(train_gen)
-            sm = softmax(w, X_batch)
-            g = grad_softmax_loss(x=X_batch, mat=sm, c=y_batch)
-            w = w - lr * ((1 / X_batch.shape[1]) * g)
-            loss = softmax_loss(sm, y_batch)
-            # if not mb % 100:
-            #     print(f'{i+1}/{mb} - state = {np.array(w).flatten()}, loss = {loss}')
-        val_softmax = softmax(w, X_val.T)
-        print(f'{i + 1}/{mb} - state = {np.array(w).flatten()}, validation loss = {softmax_loss(val_softmax, y_val.T)}')
-        train_softmax = softmax(w, X_train.T)
-        pred, truth = np.eye(y_train.shape[1])[np.argmax(train_softmax, axis=0)].T, y_train.T
-        print(f'end of epoch {i + 1}, train acc. = {np.count_nonzero(np.all(pred == truth, axis=0)) / truth.shape[1]}')
-        pred, truth = np.eye(y_val.shape[1])[np.argmax(val_softmax, axis=0)].T, y_val.T
-        print(f'end of epoch {i+1}, val acc. = {np.count_nonzero(np.all(pred == truth, axis=0)) / truth.shape[1]}')
+            sm = softmax(w @ X_batch)
+            g = grad_softmax_loss_wrt_w(x=X_batch, mat=sm, c=y_batch)
+            w = w - lr * g
+        train_softmax = softmax(w @ X_train.T)
+        val_softmax = softmax(w @ X_val.T)
+        loss = softmax_loss(val_softmax, y_val.T)
+
+        train_pred, train_truth = np.eye(y_train.shape[1])[np.argmax(train_softmax, axis=0)].T, y_train.T
+        train_acc = np.count_nonzero(np.all(train_pred == train_truth, axis=0)) / train_truth.shape[1]
+        val_pred, val_truth = np.eye(y_val.shape[1])[np.argmax(val_softmax, axis=0)].T, y_val.T
+        val_acc = np.count_nonzero(np.all(val_pred == val_truth, axis=0)) / val_truth.shape[1]
+        metrics[epoch] = [train_acc, val_acc, loss]
+        print_metrics(epoch, loss, train_acc, val_acc)
+        # if epoch > 0 and abs(metrics[epoch][-1] - metrics[epoch-1][-1]) < threshold:
+        #     cprint('loss not improving, ending training...', 'green')
+        #     break
+    plot_classification_accuracy([m[0] for m in metrics.values()], [m[1] for m in metrics.values()])
+    plot_loss([m[2] for m in metrics.values()])
 
 
 def run_ls_example(a, b, bs):
@@ -99,8 +99,8 @@ if __name__ == '__main__':
     bs = 256
     # run_ls_example(a, b, bs)
 
-    bs = 32
-    lr = 0.05
+    bs = 8
+    lr = 0.005
     datasets = load_datasets('data/*')
 
     # lrs = [0.01 * a for a in [5, 1, 0.5, 0.1]]
@@ -109,4 +109,4 @@ if __name__ == '__main__':
     # for lr, bs in combinations:
     #     calc_classification(datasets['SwissRollData'], lr=lr, batch_size=bs)
 
-    calc_classification(datasets['PeaksData'], lr=lr, batch_size=bs)
+    calc_classification(datasets['SwissRollData'], lr=lr, batch_size=bs, epochs=60)
