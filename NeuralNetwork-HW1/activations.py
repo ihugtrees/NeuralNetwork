@@ -2,12 +2,12 @@ import numpy as np
 
 
 def relu(x):
-    return max(0, x)
+    return np.maximum(0, x)
 
 
-def relu_grad(x, w):
-    raise NotImplementedError
+def relu_derivative(z):
+    return np.greater(z, 0).astype(int)
 
 
-def grad_tanh(x, w):
-    return np.ones(x.shape[0]) - np.tanh(w @ x) ** 2
+def tanh_derivative(z):
+    return 1 - np.tanh(z) ** 2

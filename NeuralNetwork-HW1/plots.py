@@ -36,8 +36,22 @@ def test_dummy_data(samples=20, iter=10, eps=0.1,
     plot_semilogy([y0, y1])
 
 
-def plot_classification_success_by_epoch():
-    raise NotImplementedError
+def plot_classification_accuracy(train,val):
+    plt.plot(train)
+    plt.plot(val)
+    plt.legend(("train acc", "validation_acc"))
+    plt.title("Train and validation accuracy per epoch")
+    plt.xlabel("epoch")
+    plt.ylabel("accuracy")
+    plt.show()
+
+
+def plot_loss(loss):
+    plt.plot(loss)
+    plt.title("Loss per epoch")
+    plt.xlabel("epoch")
+    plt.ylabel("loss")
+    plt.show()
 
 
 if __name__ == '__main__':

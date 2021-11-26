@@ -1,3 +1,6 @@
 numpy
 seaborn
 matplotlib
+scipy
+sklearn
+termcolor
