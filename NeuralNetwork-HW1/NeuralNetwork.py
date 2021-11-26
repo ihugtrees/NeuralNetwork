@@ -167,10 +167,11 @@ if __name__ == '__main__':
         {"input_dim": 64, "output_dim": 2, "activation": "softmax"}
     ]
 
-    model = Model(layer_dict=small_arch, batch_size=256, epochs=1, lr=0.1)
+    model = Model(layer_dict=small_arch, batch_size=256, epochs=50, lr=0.1)
 
     datasets = load_datasets('data/*')
     data = datasets['SwissRollData']
     model.train(data)
+
     layers = list(model.get_layers().values())
     # test_grad_softmax_nn(model, data['Yv'], data['Cv'])
