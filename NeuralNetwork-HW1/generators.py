@@ -17,6 +17,7 @@ def ls_mini_batch_generator(data, bs, shuffle=False):
 
 
 def data_mini_batch_generator(data, bs, shuffle=True):
+    random.seed(random.randint(1, 300))
     X, y = data
     data_len = len(X)
     if shuffle:

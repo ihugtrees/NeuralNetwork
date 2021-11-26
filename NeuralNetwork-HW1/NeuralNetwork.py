@@ -6,10 +6,9 @@ import numpy as np
 from activations import tanh_derivative, relu, relu_derivative
 from generators import data_mini_batch_generator
 from plots import plot_classification_accuracy, plot_loss
-from softmax import softmax, grad_softmax_loss_wrt_w, softmax_loss, grad_softmax_wrt_x
-from utils import load_datasets
+from softmax import softmax, grad_softmax_loss_wrt_w, softmax_loss, grad_softmax_wrt_x, grad_softmax_wrt_b
 from softmax_tests import test_grad_softmax_nn
-context = dict()
+from utils import load_datasets
 
 
 class Layer:
@@ -20,15 +19,16 @@ class Layer:
         self.b = np.random.randn(output_dim, 1)
         self.activation = self.__get_activation(activation)
         self.activation_grad = self.__get_activation_derivative(activation)
-        self.is_resnet_layer = is_resnet_layer
+        if self.activation_type != 'softmax' and self.layer_id != 0:
+            self.is_resnet_layer = is_resnet_layer
+        else:
+            self.is_resnet_layer = False
         self.lr = lr
         self.v = None
         self.z = None
         self.x = None
         if self.is_resnet_layer:
-            if not output_dim == input_dim:
-                raise ValueError('w is not nxn')
-            self.w2 = np.random.randn(output_dim, input_dim)
+            self.w2 = np.random.randn(input_dim, output_dim)
 
     @staticmethod
     def __get_activation_derivative(activation):
@@ -59,28 +59,36 @@ class Layer:
             self.grad = self.activation_grad(self.v)
         self.z = self.activation(self.v)
         if self.is_resnet_layer:
-            self.z = x + self.w2 @ self.z
+            self.z = x + (self.w2 @ self.z)
         return self.z
 
     def backward(self, dx):
-        grad = self.activation_grad(self.w @ self.x + self.b)
-        a = grad * dx
-        self.db = a.sum(keepdims=True, axis=1)
-        self.dw = a @ self.x.T
+        deriv = self.activation_grad(self.v)
         if not self.is_resnet_layer:
+            a = deriv * dx
+            self.db = a.sum(keepdims=True, axis=1)
+            self.dw = a @ self.x.T
             dx = self.w.T @ a
             return dx
         else:
-            self.db = (self.w2 * a).sum(keepdims=True, axis=1)
-            self.dw = self.w2 @ self.dw
-            self.dw2 = a @ self.activation(self.v)
-            dx = np.eye(*self.w.shape) + (self.w2 * a) @ self.w
+            a = deriv * (self.w2.T @ dx)
+            self.dw = a @ self.x.T
+            self.dw2 = dx @ self.activation(self.v).T
+            self.db = a.sum(keepdims=True, axis=1)
+            dx = dx + self.w.T @ a
             return dx
 
     def update_weights(self):
         bs = self.z.shape[1]
-        self.w = self.w - self.lr * (1 / bs) * self.dw
-        self.b = self.b - self.lr * (1 / bs) * self.db
+        if self.activation_type != 'softmax':
+            a = 1 / bs
+        else:
+            a = 1
+        self.w = self.w - self.lr * a * self.dw
+        self.b = self.b - self.lr * a * self.db
+
+        if self.is_resnet_layer:
+            self.w2 = self.w2 - self.lr * a * self.dw2
 
 
 class Model:
@@ -96,17 +104,6 @@ class Model:
 
     def get_layers(self):
         return self.layers
-
-    def load_weights(self, weights_dict):
-        for layer, weights in weights_dict.items():
-            self.layers[layer].w = weights['w']
-            self.layers[layer].w = weights['b']
-
-    def get_weights(self):
-        d = defaultdict(dict)
-        for name, layer in self.layers.items():
-            d[name]['w'] = layer.w
-            d[name]['b'] = layer.b
 
     def __print_model(self):
         for name, layer in self.layers.items():
@@ -126,12 +123,14 @@ class Model:
         last_layer = reversed_layers[0]
         w, x, b = last_layer.w, last_layer.x, last_layer.b
         dw = grad_softmax_loss_wrt_w(prediction, x, y)
+        db = grad_softmax_wrt_b(prediction, y)
         dx = grad_softmax_wrt_x(prediction, w, y)
-        last_layer.w = last_layer.w - self.lr * dw
+        # last_layer.w = last_layer.w - self.lr * dw
         last_layer.dw = dw
-        db = np.sum(dw, axis=1, keepdims=True)
+        db = np.sum(db, axis=1, keepdims=True)
+        # db = np.expand_dims(np.ones(last_layer.b.shape[0]), axis=1)
         last_layer.db = db
-        last_layer.b = last_layer.b - self.lr * db
+        # last_layer.b = last_layer.b - self.lr * db
         return dx
 
     def backward(self, prediction, y):
@@ -141,7 +140,7 @@ class Model:
             dx = curr_layer.backward(dx)
 
     def update_weights(self):
-        for n, layer in list(self.get_layers().items())[:-1]:
+        for n, layer in list(self.get_layers().items()):
             layer.update_weights()
 
     @staticmethod
@@ -157,7 +156,7 @@ class Model:
         return softmax_loss(pred, y)
 
     def train(self, data):
-        X_train, X_val, y_train, y_val = data['Yt'].T, data['Yv'].T, data['Ct'].T, data['Cv'].T
+        X_train, X_val, y_train, y_val = data
         metrics = dict()
         for i in range(self.epochs):
             train_gen = data_mini_batch_generator(data=[X_train, y_train], bs=self.batch_size, shuffle=True)
@@ -172,36 +171,49 @@ class Model:
             train_loss = self.compute_loss(self.forward(X_train.T), y_train.T)
             val_loss = self.compute_loss(self.forward(X_val.T), y_val.T)
             if not i % 25:
-                print(
-                    f'epoch {i + 1}: acc_train = {acc_train}, acc_val = {acc_val}, loss_val = {val_loss}, train_loss = {train_loss}')
+                print(f'epoch {i + 1}: acc_train = {acc_train}, acc_val = {acc_val}, loss_val = {val_loss}, train_loss = {train_loss}')
             metrics[i] = [acc_train, acc_val, val_loss]
-        # Model.plot_metrics(metrics)
+        Model.plot_metrics(metrics)
 
 
 if __name__ == '__main__':
     datasets = load_datasets('data/*')
-    data = datasets['GMMData']
-    input = data['Yt'].shape[0]
-    output = data['Ct'].shape[0]
+    data = datasets['SwissRollData']
+    input_shape = data['Yt'].shape[0]
+    output_shape = data['Ct'].shape[0]
+
 
     regular_arch = [
-        {"input_dim": input, "output_dim": 8, "activation": "tanh"},
-        {"input_dim": 8, "output_dim": 8, "activation": "tanh"},
-        {"input_dim": 8, "output_dim": 10, "activation": "relu"},
-        {"input_dim": 10, "output_dim": 15, "activation": "relu"},
-        {"input_dim": 15, "output_dim": output, "activation": "softmax"}
+        {"input_dim": input_shape, "output_dim": 45, "activation": "tanh"},
+        {"input_dim": 45, "output_dim": 45, "activation": "tanh"},
+        {"input_dim": 45, "output_dim": output_shape, "activation": "softmax"}
     ]
 
     resnet_arch = [
-        {"input_dim": input, "output_dim": 8, "activation": "relu"},
-        {"input_dim": 8, "output_dim": 8, "activation": "relu"},
-        {"input_dim": 8, "output_dim": 8, "activation": "relu"},
-        {"input_dim": 8, "output_dim": output, "activation": "softmax"},
+        {"input_dim": input_shape, "output_dim": 10, "activation": "relu"},
+        {"input_dim": 10, "output_dim": 10, "activation": "relu"},
+        {"input_dim": 10, "output_dim": 10, "activation": "relu"},
+        {"input_dim": 10, "output_dim": output_shape, "activation": "softmax"},
     ]
 
-    model = Model(layer_dict=regular_arch, batch_size=32, epochs=0, lr=0.1,
+
+    # nn grad test
+    model = Model(layer_dict=regular_arch, batch_size=32, epochs=0, lr=0.05,
+                  is_resnet=False)
+    test_grad_softmax_nn(model, data['Yv'], data['Cv'])
+
+    # regular run
+    bs, epochs, lr = 32, 101, 0.05
+    model = Model(layer_dict=regular_arch, batch_size=bs, epochs=epochs, lr=lr,
                   is_resnet=False)
 
-    model.train(data)
+    # sample data subset
+    all_data = (data['Yt'].T, data['Yv'].T, data['Ct'].T, data['Cv'].T)
+    sample = np.random.randint(data['Yt'].shape[1], size=200)
+    small_data = (data['Yt'].T[sample, :], data['Yv'].T, data['Ct'].T[sample, :], data['Cv'].T)
+    model.train(all_data)
 
-    test_grad_softmax_nn(model, data['Yv'], data['Cv'])
+    # run model on smaller data
+    model = Model(layer_dict=regular_arch, batch_size=bs, epochs=epochs, lr=lr,
+                  is_resnet=False)
+    model.train(small_data)

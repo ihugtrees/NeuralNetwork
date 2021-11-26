@@ -49,7 +49,7 @@ def plot_classification_accuracy(train, val):
 
 def plot_loss(loss):
     plt.plot(loss)
-    plt.title("Loss per epoch")
+    plt.title("Validation loss per epoch")
     plt.xlabel("epoch")
     plt.ylabel("loss")
     plt.show()

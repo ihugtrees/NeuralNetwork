@@ -43,6 +43,12 @@ def grad_softmax_loss_wrt_w(mat, x: np.ndarray, c: np.ndarray):
     return (1 / m) * (mat - c) @ x.T
 
 
+def grad_softmax_wrt_b(z, c: np.ndarray):
+    # as seen in https://cs231n.github.io/neural-networks-case-study/
+    m = c.shape[1]
+    return (1 / m) * (z - c)
+
+
 def grad_softmax_wrt_x(z, w, c: np.ndarray):
     """
     Function that returns the gradient on the softmax w.r.t weights
