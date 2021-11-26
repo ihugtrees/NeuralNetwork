@@ -123,8 +123,8 @@ class Model:
         dw = grad_softmax_loss_wrt_w(pred, x, y)
         dx = grad_softmax_wrt_x(pred, w, y)
         last_layer.w = last_layer.w - self.lr * dw
-        db = np.sum(dw, axis=1, keepdims=True)
-        last_layer.b = last_layer.b - self.lr * db
+        # db = np.sum(dw, axis=1, keepdims=True)
+        # last_layer.b = last_layer.b - self.lr * db
         for curr_layer in rev_layers[1:]:
             dx = curr_layer.backward(dx)
 
@@ -173,4 +173,4 @@ if __name__ == '__main__':
     data = datasets['SwissRollData']
     model.train(data)
     layers = list(model.get_layers().values())
-    test_grad_softmax_nn(model, data['Yv'], data['Cv'])
+    # test_grad_softmax_nn(model, data['Yv'], data['Cv'])
