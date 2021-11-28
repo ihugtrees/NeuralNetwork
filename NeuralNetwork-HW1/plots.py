@@ -7,6 +7,7 @@ from termcolor import cprint
 seed = 1920
 np.random.seed(seed=seed)
 
+
 def plot_semilogy(lines: List):
     plt.semilogy(lines[0][1:])
     plt.semilogy(lines[1][1:])
@@ -18,8 +19,8 @@ def plot_semilogy(lines: List):
 
 
 def test_dummy_data(samples=20, iter=10, eps=0.1,
-                      f=lambda x: 0.5 * np.dot(x, x),
-                      g_f=lambda x: x):
+                    f=lambda x: 0.5 * np.dot(x, x),
+                    g_f=lambda x: x):
     x = np.random.randn(samples)
     d = np.random.randn(samples)
     f0 = f(x)
@@ -36,7 +37,7 @@ def test_dummy_data(samples=20, iter=10, eps=0.1,
     plot_semilogy([y0, y1])
 
 
-def plot_classification_accuracy(train,val):
+def plot_classification_accuracy(train, val):
     plt.plot(train)
     plt.plot(val)
     plt.legend(("train acc", "validation_acc"))

@@ -1,13 +1,14 @@
 from collections import defaultdict
 from typing import Dict, List
-import numpy as np
-from generators import data_mini_batch_generator
-from softmax import softmax, grad_softmax_loss_wrt_w, softmax_loss, grad_softmax_wrt_x
-from activations import tanh_derivative, relu, relu_derivative
-from utils import load_datasets
-from plots import plot_classification_accuracy, plot_loss
-from softmax_tests import test_grad_softmax_nn
 
+import numpy as np
+
+from activations import tanh_derivative, relu, relu_derivative
+from generators import data_mini_batch_generator
+from plots import plot_classification_accuracy, plot_loss
+from softmax import softmax, grad_softmax_loss_wrt_w, softmax_loss, grad_softmax_wrt_x
+from utils import load_datasets
+from softmax_tests import test_grad_softmax_nn
 context = dict()
 
 
@@ -171,7 +172,8 @@ class Model:
             train_loss = self.compute_loss(self.forward(X_train.T), y_train.T)
             val_loss = self.compute_loss(self.forward(X_val.T), y_val.T)
             if not i % 25:
-                print(f'epoch {i + 1}: acc_train = {acc_train}, acc_val = {acc_val}, loss_val = {val_loss}, train_loss = {train_loss}')
+                print(
+                    f'epoch {i + 1}: acc_train = {acc_train}, acc_val = {acc_val}, loss_val = {val_loss}, train_loss = {train_loss}')
             metrics[i] = [acc_train, acc_val, val_loss]
         # Model.plot_metrics(metrics)
 
@@ -182,13 +184,12 @@ if __name__ == '__main__':
     input = data['Yt'].shape[0]
     output = data['Ct'].shape[0]
 
-
     regular_arch = [
-        {"input_dim": input, "output_dim": 8, "activation": "relu"},
-        {"input_dim": 8, "output_dim": 8, "activation": "relu"},
-        # {"input_dim": 8, "output_dim": 10, "activation": "relu"},
-        # {"input_dim": 10, "output_dim": 15, "activation": "relu"},
-        {"input_dim": 8, "output_dim": output, "activation": "softmax"}
+        {"input_dim": input, "output_dim": 8, "activation": "tanh"},
+        {"input_dim": 8, "output_dim": 8, "activation": "tanh"},
+        {"input_dim": 8, "output_dim": 10, "activation": "relu"},
+        {"input_dim": 10, "output_dim": 15, "activation": "relu"},
+        {"input_dim": 15, "output_dim": output, "activation": "softmax"}
     ]
 
     resnet_arch = [
@@ -198,9 +199,9 @@ if __name__ == '__main__':
         {"input_dim": 8, "output_dim": output, "activation": "softmax"},
     ]
 
-    model = Model(layer_dict=resnet_arch, batch_size=32, epochs=60, lr=0.1,
+    model = Model(layer_dict=regular_arch, batch_size=32, epochs=0, lr=0.1,
                   is_resnet=False)
 
     model.train(data)
 
-    # test_grad_softmax_nn(model, data['Yv'], data['Cv'])
+    test_grad_softmax_nn(model, data['Yv'], data['Cv'])

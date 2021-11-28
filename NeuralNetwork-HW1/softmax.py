@@ -1,11 +1,12 @@
 import numpy as np
+
 DEBUG = True
 seed = 1920
 
 
 def softmax(Z) -> np.ndarray:
     """
-    :param A: input matrix
+    :param Z: input matrix
     :return: softmax on matrix input
     """
     # mat = x.T @ w
@@ -27,7 +28,7 @@ def softmax_loss(x: np.ndarray, c) -> np.ndarray:
         m = x.shape[1]
     else:
         m = x.shape
-    return -(1/m) * np.sum(np.log(x) * c)
+    return -(1 / m) * np.sum(np.log(x) * c)
 
 
 def grad_softmax_loss_wrt_w(mat, x: np.ndarray, c: np.ndarray):
@@ -39,7 +40,7 @@ def grad_softmax_loss_wrt_w(mat, x: np.ndarray, c: np.ndarray):
     :return: gradient of softmax loss
     """
     m = c.shape[1]
-    return (1/m) * (mat - c) @ x.T
+    return (1 / m) * (mat - c) @ x.T
 
 
 def grad_softmax_wrt_x(z, w, c: np.ndarray):
@@ -50,4 +51,4 @@ def grad_softmax_wrt_x(z, w, c: np.ndarray):
     :return: gradient of softmax loss
     """
     m = c.shape[1]
-    return (1/m) * w.T @ (z - c)
+    return (1 / m) * w.T @ (z - c)

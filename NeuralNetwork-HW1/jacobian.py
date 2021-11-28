@@ -1,10 +1,11 @@
+import random
+
+import numpy as np
+import pandas as pd
 from termcolor import cprint
 
-from plots import plot_semilogy
-import numpy as np
 import activations
-import pandas as pd
-import random
+from plots import plot_semilogy
 
 seed = 1923
 np.random.seed(seed)
