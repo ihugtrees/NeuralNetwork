@@ -16,27 +16,35 @@ def jacobian_function(w, x, b):
     return np.tanh(z)
 
 
-def jacobian_gradient_wrt_x(w, x, b, v):
+def jacobian_gradients(w, x, b, v):
     z = w @ x + b
-    return w.T @ (activations.tanh_derivative(z) * v)
+    a = (activations.tanh_derivative(z) * v)
+    return w.T @ a, a @ x.T, a
 
 
 def test_jacobian(*args):
     iters = 10
     eps = 0.1
     x, w, b, v = args
-    d = np.random.rand(x.shape[0], x.shape[1])
-    d = d / np.linalg.norm(d)
+    dx = np.random.rand(x.shape[0], x.shape[1])
+    dw = np.random.rand(w.shape[0], w.shape[1])
+    db = np.random.rand(b.shape[0], b.shape[1])
     g0 = np.vdot(jacobian_function(w, x, b), v)
-    grad_x = jacobian_gradient_wrt_x(w, x, b, v)
+    grad_x, grad_w, grad_b = jacobian_gradients(w, x, b, v)
     y0, y1 = np.zeros(iters), np.zeros(iters)
     df = pd.DataFrame(columns=["Error order 1", "Error order 2"])
     cprint("k\t error order 1 \t\t\t error order 2", 'green')
     for k in range(iters):
         epsk = eps * (0.5 ** k)
-        gk = np.vdot(jacobian_function(w, x + epsk * d, b), v)
-        y0[k] = np.abs(gk - g0)
-        y1[k] = np.abs(gk - g0 - np.vdot(grad_x, epsk * d))
+        gk_w = np.vdot(jacobian_function(w + epsk * dw, x, b), v)
+        gk_x = np.vdot(jacobian_function(w, x + epsk * dx, b), v)
+        gk_b = np.vdot(jacobian_function(w, x, b + epsk * db), v)
+        y0[k] = np.abs(gk_b - g0)
+        y1[k] = np.abs(gk_b - g0 - np.vdot(np.sum(grad_b, axis=1, keepdims=True), (epsk * db)))
+        # y0[k] = np.abs(gk_x - g0)
+        # y1[k] = np.abs(gk_x - g0 - np.vdot(grad_x, epsk * dx))
+        # y0[k] = np.abs(gk_w - g0)
+        # y1[k] = np.abs(gk_w - g0 - np.vdot(grad_w, epsk * dw))
         print(k, "\t", y0[k], "\t", y1[k])
         s = pd.Series([y0[k], y1[k]], index=df.columns.to_list())
         df = df.append(s, ignore_index=True)

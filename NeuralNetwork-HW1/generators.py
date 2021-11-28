@@ -16,7 +16,7 @@ def ls_mini_batch_generator(data, bs, shuffle=False):
             print(f'{e}')
 
 
-def data_mini_batch_generator(data, bs, shuffle=False):
+def data_mini_batch_generator(data, bs, shuffle=True):
     X, y = data
     data_len = len(X)
     if shuffle:

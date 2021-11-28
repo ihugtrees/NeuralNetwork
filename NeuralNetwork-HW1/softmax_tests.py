@@ -2,6 +2,7 @@ from termcolor import cprint
 from plots import plot_semilogy
 import pandas as pd
 from softmax import *
+from copy import deepcopy
 import pandas as pd
 from termcolor import cprint
 
@@ -35,27 +36,26 @@ def test_grad_softmax(inputs, w, bias, one_hot_classes, iters=10, eps=0.1):
 
 
 def test_grad_softmax_nn(nn, x, y, iters=10, eps=0.1):
-    tested_layer = list(nn.get_layers().values())[0]
     last_layer = list(nn.get_layers().values())[-1]
-    d = np.random.rand(tested_layer.w.shape[0], tested_layer.w.shape[1])
     pred = nn.forward(x)
     f0 = softmax_loss(pred, y)
-    g0 = grad_softmax_loss_wrt_w(x=last_layer.x, mat=pred, c=y).T
+    g0 = grad_softmax_loss_wrt_w(x=last_layer.x, mat=pred, c=y)
+    dw = np.random.rand(y.shape[0], last_layer.x.shape[0])
     y0, y1 = np.zeros(iters), np.zeros(iters)
     df = pd.DataFrame(columns=["Error order 1", "Error order 2"])
     cprint("k\t error order 1 \t\t\t error order 2", 'green')
     for k in range(iters):
-        epsk = eps * (0.5 ** k)
-        first_layer_w_old = tested_layer.w.copy()
-        tested_layer.w = (tested_layer.w + epsk * d)
+        epsk = eps * (0.2 ** k)
+        last_layer_cp = last_layer.w.copy()
+        last_layer.w = last_layer.w + epsk * dw
         pred_new = nn.forward(x)
         fk = softmax_loss(pred_new, y)
         y0[k] = np.abs(fk - f0)
-        y1[k] = np.abs(fk - f0 - epsk * np.vdot(g0, d))
+        y1[k] = np.abs(fk - f0 - epsk * np.sum(g0 * dw))
         print(k, "\t", y0[k], "\t", y1[k])
         s = pd.Series([y0[k], y1[k]], index=df.columns.to_list())
         df = df.append(s, ignore_index=True)
-        tested_layer.w = first_layer_w_old
+        last_layer.w = last_layer_cp
     df.astype('string').to_csv('error_by_orders_nn.csv')
     plot_semilogy([y0, y1])
 
