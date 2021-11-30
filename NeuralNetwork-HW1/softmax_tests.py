@@ -34,14 +34,46 @@ def test_grad_softmax(inputs, w, bias, one_hot_classes, iters=10, eps=0.1):
     df.astype('string').to_csv('error_by_orders.csv')
     plot_semilogy([y0, y1])
 
+def another_nn_grad_test(nn,x,y):
+    Ygt = x
+    Cgt = y
+
+    weights = [nn.layers[layer].w for layer in nn.layers]
+    w_shapes = [w.shape for w in weights]
+    ds = [d / np.linalg.norm(d) for d in (np.random.default_rng().standard_normal(size=w) for w in w_shapes)]
+    x = [np.random.default_rng().standard_normal(size=w) for w in w_shapes]
+
+    def f(x):
+        for layer, w in zip(nn.layers, x):
+            nn.layers[layer].w = w
+        out = nn.forward(Ygt)
+        return softmax_loss(out, Cgt),out
+
+    def grad(x,out):
+        f(x)
+        nn.backward(out,y)
+        return np.concatenate(
+            [np.ravel(nn.layers[layer].dw) for layer in nn.layers] , axis=0)
+
+    eps_0 = 0.5
+    eq_38 = []
+    eq_39 = []
+    fx,out = f(x)
+    d_grad_x = np.concatenate([np.ravel(d) for d in ds]).T @ np.ravel(grad(x,out))
+    for eps_i in np.geomspace(eps_0, eps_0 ** 5, 8):
+        fx_eps_i_d,out1 = f([w + eps_i * d for w, d in zip(x, ds)])
+        eq_38.append(np.abs(fx_eps_i_d - fx))
+        eq_39.append(np.abs(fx_eps_i_d - fx - eps_i * d_grad_x))
+    plot_semilogy([eq_38, eq_39])
 
 def test_grad_softmax_nn(nn, x, y, iters=10, eps=0.1):
     layers_deepcopy = deepcopy(nn.layers)
-    # last_layer = list(nn.get_layers().values())[-1]
+    last_layer = list(nn.get_layers().values())[-1]
     pred = nn.forward(x)
     f0 = softmax_loss(pred, y)
+    g0 = grad_softmax_loss_wrt_w(x=last_layer.x, mat=pred, c=y)
     nn.backward(pred, y)
-    # g0 = grad_softmax_loss_wrt_w(x=last_layer.x, mat=pred, c=y)
+
 
     dws = dict()
     dbs = dict()
@@ -62,9 +94,13 @@ def test_grad_softmax_nn(nn, x, y, iters=10, eps=0.1):
     y0, y1 = np.zeros(iters), np.zeros(iters)
     df = pd.DataFrame(columns=["Error order 1", "Error order 2"])
     cprint("k\t error order 1 \t\t\t error order 2", 'green')
+    ggg=np.concatenate([np.ravel(nn.layers[layer].dw) for layer in nn.layers], axis=0)
+    b = np.concatenate([np.ravel(dws[d]) for d in dws]).T
+    a = np.ravel(ggg)
 
+    giba = b @ a
     for k in range(iters):
-        epsk = eps * (0.2 ** k)
+        epsk = eps * (0.5 ** k)
         for n, layer in nn.layers.items():
             nn.layers[n].w = layers_deepcopy[n].w + epsk * dws[n]
             nn.layers[n].b = layers_deepcopy[n].b + epsk * dbs[n]
@@ -72,7 +108,10 @@ def test_grad_softmax_nn(nn, x, y, iters=10, eps=0.1):
         pred_new = nn.forward(x)
         fk = softmax_loss(pred_new, y)
         y0[k] = np.abs(fk - f0)
-        y1[k] = np.abs(fk - f0 - epsk * gd - epsk * gdb)
+
+        y1[k] = np.abs(fk - f0 - epsk * giba)
+        ddd=dws['layer_4']
+        #y1[k] = np.abs(fk - f0 - epsk*np.sum(g0 * dws['layer_4']))
         print(k, "\t", y0[k], "\t", y1[k])
         s = pd.Series([y0[k], y1[k]], index=df.columns.to_list())
         df = df.append(s, ignore_index=True)
@@ -81,6 +120,7 @@ def test_grad_softmax_nn(nn, x, y, iters=10, eps=0.1):
 
 
 def run_test_grad_softmax():
+
     np.random.seed(seed=seed)
 
     n, m = 6, 3
@@ -100,5 +140,7 @@ def run_test_grad_softmax():
     test_grad_softmax(X, w, bias, one_hot)
 
 
+
 if __name__ == '__main__':
     run_test_grad_softmax()
+

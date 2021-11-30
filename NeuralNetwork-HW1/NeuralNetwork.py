@@ -8,7 +8,7 @@ from generators import data_mini_batch_generator
 from plots import plot_classification_accuracy, plot_loss
 from softmax import softmax, grad_softmax_loss_wrt_w, softmax_loss, grad_softmax_wrt_x
 from utils import load_datasets
-from softmax_tests import test_grad_softmax_nn
+from softmax_tests import test_grad_softmax_nn, test_grad_softmax,another_nn_grad_test
 context = dict()
 
 
@@ -127,11 +127,11 @@ class Model:
         w, x, b = last_layer.w, last_layer.x, last_layer.b
         dw = grad_softmax_loss_wrt_w(prediction, x, y)
         dx = grad_softmax_wrt_x(prediction, w, y)
-        last_layer.w = last_layer.w - self.lr * dw
+        # last_layer.w = last_layer.w - self.lr * dw
         last_layer.dw = dw
         db = np.sum(dw, axis=1, keepdims=True)
         last_layer.db = db
-        last_layer.b = last_layer.b - self.lr * db
+        #last_layer.b = last_layer.b - self.lr * db
         return dx
 
     def backward(self, prediction, y):
@@ -205,3 +205,5 @@ if __name__ == '__main__':
     model.train(data)
 
     test_grad_softmax_nn(model, data['Yv'], data['Cv'])
+    #another_nn_grad_test(model, data['Yv'], data['Cv'])
+    #test_grad_softmax(model, data['Yv'], data['Cv'])
